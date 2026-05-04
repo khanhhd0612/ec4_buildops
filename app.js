@@ -27,11 +27,11 @@ app.get("/", (req, res) => {
 });
 
 if (config.env === 'production') {
-    app.use('/v1', globalLimiter);
-    app.use('/v1/auth', authLimiter);
+    app.use('/api/v1', globalLimiter);
+    app.use('/api/v1/auth', authLimiter);
 }
 
-app.use("/v1", routes);
+app.use("/api/v1", routes);
 
 app.use((req, res, next) => {
     next(new ApiError(404, 'Not found'));

@@ -63,7 +63,7 @@ const userSchema = mongoose.Schema(
                 values: roles,
                 message: `Role phải là một trong: ${roles.join(', ')}`
             },
-            default: 'student',
+            default: 'viewer',
             required: true
         },
 
@@ -160,7 +160,6 @@ userSchema.virtual('isLocked').get(function () {
  * Phương thức xử lý khi đăng nhập thất bại
  */
 userSchema.methods.incLoginAttempts = async function () {
-    // Nếu khóa đã hết hạn, reset về 1 lần thử
     if (this.lockUntil && this.lockUntil < Date.now()) {
         return this.updateOne({
             $set: { loginAttempts: 1 },
@@ -202,18 +201,19 @@ userSchema.methods.createResetToken = function () {
  * Tạo email verification token
  * @returns {Object} - { token, hashedToken }
  */
-userSchema.statics.createEmailVerificationToken = function () {
+userSchema.methods.createEmailVerificationToken = function () {
     const crypto = require('crypto');
+
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto
+
+    this.emailVerificationToken = crypto
         .createHash('sha256')
         .update(token)
         .digest('hex');
 
-    return {
-        token: token,
-        hashedToken: hashedToken
-    };
+    this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+
+    return token;
 };
 
 /**
@@ -311,7 +311,6 @@ userSchema.methods.toAuthJSON = function () {
  */
 userSchema.pre('save', async function (next) {
     try {
-        // Chỉ hash nếu password được thay đổi
         if (!this.isModified('password')) {
             return next();
         }

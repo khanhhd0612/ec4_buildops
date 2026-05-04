@@ -1,31 +1,26 @@
 const { Schema, model } = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
+const validator = require('validator');
 
-//Member
 const projectMemberSchema = new Schema(
     {
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-
         role: {
             type: String,
             enum: ['owner', 'pm', 'engineer', 'supervisor', 'warehouse', 'viewer'],
             default: 'viewer',
         },
-
         joinedAt: { type: Date, default: Date.now },
-
     },
     { _id: false }
 );
 
-//Location
 const locationSchema = new Schema(
     {
         address: String,
         province: String,
         district: String,
         ward: String,
-
         coordinates: {
             lat: Number,
             lng: Number,
@@ -34,16 +29,8 @@ const locationSchema = new Schema(
     { _id: false }
 );
 
-//Project
 const projectSchema = new Schema(
     {
-        orgId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Organization',
-            required: true,
-            index: true,
-        },
-
         code: {
             type: String,
             required: true,
@@ -69,20 +56,16 @@ const projectSchema = new Schema(
             index: true,
         },
 
-        //Quan hệ (chuẩn hóa ObjectId)
-        ownerId: { type: Schema.Types.ObjectId, ref: 'Organization' },
-        mainContractorId: { type: Schema.Types.ObjectId, ref: 'Organization' },
-        consultantId: { type: Schema.Types.ObjectId, ref: 'Organization' },
+        ownerUnit: { type: String, trim: true },
+        mainContractor: { type: String, trim: true },
+        consultantUnit: { type: String, trim: true },
 
-        //Location
         location: locationSchema,
 
-        //Timeline
         startDate: Date,
         endDate: Date,
         actualEndDate: Date,
 
-        //Financial
         currency: {
             type: String,
             default: 'VND',
@@ -95,7 +78,6 @@ const projectSchema = new Schema(
         totalBudget: { type: Number, default: 0 },
         contractValue: { type: Number, default: 0 },
 
-        //tránh sai lệch
         progressPct: {
             type: Number,
             min: 0,
@@ -137,13 +119,25 @@ const projectSchema = new Schema(
 projectSchema.plugin(toJSON);
 projectSchema.plugin(paginate);
 
-projectSchema.index({ orgId: 1, code: 1 }, { unique: true });
-projectSchema.index({ orgId: 1, status: 1 });
+projectSchema.index({ code: 1 }, { unique: true });
 projectSchema.index({ 'members.userId': 1 });
 projectSchema.index({ name: 'text' });
+projectSchema.index({ status: 1, isArchived: 1 });
+
+projectSchema.statics.isCodeTaken = async function (code, excludeProjectId) {
+    const project = await this.findOne({
+        code: code.toUpperCase(),
+        _id: { $ne: excludeProjectId },
+    });
+    return !!project;
+};
 
 projectSchema.pre('save', function (next) {
-    if (this.endDate && this.startDate && this.endDate < this.startDate) {
+    if (
+        (this.isModified('startDate') || this.isModified('endDate')) &&
+        this.endDate && this.startDate &&
+        this.endDate < this.startDate
+    ) {
         return next(new Error('endDate phải lớn hơn startDate'));
     }
     next();

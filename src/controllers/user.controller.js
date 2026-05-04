@@ -55,7 +55,8 @@ const createUser = catchAsync(async (req, res) => {
 });
 
 const updateRole = catchAsync(async (req, res) => {
-    const { userId, role } = req.body;
+    const { role } = req.body;
+    const { userId } = req.params;
 
     const user = await userService.updateRole(userId, role);
 

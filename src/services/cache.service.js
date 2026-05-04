@@ -43,7 +43,7 @@ const del = async (key) => {
  */
 const delByPattern = async (pattern) => {
     try {
-        const keys = await redisClient.keys(pattern); // Lấy thử danh sách key
+        const keys = await redisClient.keys(pattern);
 
         if (keys.length > 0) {
             await redisClient.del(keys);
@@ -56,9 +56,14 @@ const delByPattern = async (pattern) => {
     }
 };
 
+const clearDashboardSummaryCache = async () => {
+    return delByPattern('__express__*dashboard/summary*');
+};
+
 module.exports = {
     get,
     set,
     del,
-    delByPattern
+    delByPattern,
+    clearDashboardSummaryCache,
 };

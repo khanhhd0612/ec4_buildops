@@ -16,9 +16,16 @@ router.post('/reset-password/:resetToken', validate(authValidation.resetPassword
 
 router.post('/logout', auth(), authController.logout);
 
-router.post('/refresh', authController.refreshAccessToken);
+router.post('/refresh-token', authController.refreshAccessToken);
 
 router.get('/me', auth(), authController.getMe);
 
+router.patch('/me', auth(), validate(authValidation.updateProfile), authController.updateProfile);
+
+router.patch('/me/password', auth(), validate(authValidation.changePassword), authController.changePassword);
+
+router.get('/verify-email/:token', validate(authValidation.verifyEmail), authController.verifyEmail);
+
+router.post('/resend-verify-email', auth(), authController.resendVerifyEmail);
 
 module.exports = router;

@@ -30,7 +30,7 @@ const register = catchAsync(async (req, res) => {
         status: "success",
         message: "Đăng ký thành công. Vui lòng kiểm tra email để xác minh",
         data: {
-            user
+            user: user.toAuthJSON()
         }
     });
 });
@@ -91,7 +91,7 @@ const forgotPassword = catchAsync(async (req, res) => {
     if (!user) {
         return res.status(200).json({ status: 'success', message: 'Email đặt lại mật khẩu đã được gửi' });
     }
-    
+
     res.status(200).json({
         status: 'success',
         message: 'Email đặt lại mật khẩu đã được gửi',
@@ -113,6 +113,60 @@ const resetPassword = catchAsync(async (req, res) => {
     });
 });
 
+const changePassword = catchAsync(async (req, res) => {
+    const { password, newPassword } = req.body;
+    const user = await authService.changePassword(req.user.id, password, newPassword);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Cập nhật mật khẩu thành công',
+        data: {
+            user: user.toAuthJSON()
+        }
+    });
+});
+
+const updateProfile = catchAsync(async (req, res) => {
+    const { firstName, lastName, phone } = req.body;
+
+    const user = await authService.updateProfile(req.user.id, {
+        firstName,
+        lastName,
+        phone
+    });
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Cập nhật thông tin thành công',
+        data: {
+            user: user.toAuthJSON()
+        }
+    });
+});
+
+const verifyEmail = catchAsync(async (req, res) => {
+    const { token } = req.params;
+
+    const user = await authService.verifyEmail(token);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Xác thực email thành công',
+        data: {
+            user: user.toAuthJSON()
+        }
+    });
+});
+
+const resendVerifyEmail = catchAsync(async (req, res) => {
+    const result = await authService.resendVerifyEmail(req.user.id);
+
+    res.status(200).json({
+        status: 'success',
+        message: result.message
+    });
+});
+
 module.exports = {
     login,
     logout,
@@ -120,5 +174,9 @@ module.exports = {
     refreshAccessToken,
     getMe,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    changePassword,
+    updateProfile,
+    verifyEmail,
+    resendVerifyEmail
 }

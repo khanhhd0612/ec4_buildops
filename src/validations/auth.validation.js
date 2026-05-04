@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { password, objectId } = require('./custom.validation');
+const { roles } = require('../config/roles');
 
 /**
  * Đăng ký user mới
@@ -212,20 +213,6 @@ const updateProfile = {
             .messages({
                 'string.pattern.base': 'Số điện thoại Việt Nam không hợp lệ'
             }),
-
-        position: Joi.string()
-            .trim()
-            .max(50)
-            .messages({
-                'string.base': 'Chức vụ phải là chuỗi',
-                'string.max': 'Chức vụ không quá 50 ký tự'
-            }),
-
-        profileImage: Joi.string()
-            .uri()
-            .messages({
-                'string.uri': 'URL ảnh không hợp lệ'
-            })
     })
 };
 
@@ -284,10 +271,10 @@ const createUser = {
             }),
 
         role: Joi.string()
-            .valid('student', 'instructor', 'counselor', 'admin')
-            .default('student')
+            .valid(...roles)
+            .default('viewer')
             .messages({
-                'any.only': 'Role phải là: student instructor counselor admin'
+                'any.only': `Role phải là: ${roles.join(', ')}`
             })
     })
 };
@@ -343,9 +330,10 @@ const updateUser = {
             }),
 
         role: Joi.string()
-            .valid('student', 'instructor', 'counselor', 'admin')
+            .valid(...roles)
+            .default('viewer')
             .messages({
-                'any.only': 'Role phải là: student, instructor, counselor, admin'
+                'any.only': `Role phải là: ${roles.join(', ')}`
             }),
 
         isActive: Joi.boolean()
@@ -371,12 +359,15 @@ const getUser = {
 };
 
 const updateRole = {
-    body: Joi.object().keys({
+    params: Joi.object().keys({
         userId: Joi.string().custom(objectId).required(),
-        role: Joi.string().required()
-            .valid('student', 'instructor', 'counselor', 'admin')
+    }),
+    body: Joi.object().keys({
+        role: Joi.string()
+            .valid(...roles)
+            .default('viewer')
             .messages({
-                'any.only': 'Role phải là: student, instructor, counselor, admin'
+                'any.only': `Role phải là: ${roles.join(', ')}`
             }),
     })
 }

@@ -17,13 +17,13 @@ const gracefulShutdown = async (signal) => {
                 await mongoose.connection.close();
                 console.log('MongoDB connection closed');
 
-                // Đóng Redis an toàn
-                if (redisClient.isOpen) {
-                    await redisClient.quit();
-                    console.log('Redis connection closed');
-                }
+                // // Đóng Redis an toàn
+                // if (redisClient.isOpen) {
+                //     await redisClient.quit();
+                //     console.log('Redis connection closed');
+                // }
 
-                await closeQueues();
+                // await closeQueues();
 
                 process.exit(0);
             } catch (err) {
@@ -46,9 +46,9 @@ const startServer = async () => {
         await mongoose.connect(process.env.MONGODB_URL);
         console.log('Connected to MongoDB successfully');
 
-        await connectRedis();
+        // await connectRedis();
 
-        initQueues();
+        // initQueues();
 
         server = app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);

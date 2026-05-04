@@ -2,20 +2,27 @@ const User = require('../models/user.model');
 const Token = require('../models/token.model');
 const ApiError = require('../utils/ApiError');
 const jwt = require("jsonwebtoken");
-
+const emailJobs = require('../jobs/email.jobs');
+const crypto = require('crypto');
 
 const register = async (userBody) => {
     if (await User.isEmailTaken(userBody.email)) {
         throw new ApiError(409, 'Email đã được sử dụng');
     }
 
-    const user = await User.create({
+    const user = new User({
         firstName: userBody.firstName,
         lastName: userBody.lastName,
         email: userBody.email,
         password: userBody.password,
         phone: userBody.phone,
     });
+
+    const token = user.createEmailVerificationToken();
+
+    await user.save();
+
+    await emailJobs.addVerifyEmail(user, token);
 
     return user;
 };
@@ -37,6 +44,10 @@ const login = async (email, password) => {
 
     if (!user.isActive) {
         throw new ApiError(403, 'Tài khoản này đã bị vô hiệu hóa');
+    }
+
+    if (!user.isVerified) {
+        throw new ApiError(403, 'Tài khoản chưa được xác minh');
     }
 
     const isPasswordMatch = await user.isPasswordMatch(password);
@@ -184,11 +195,128 @@ const logout = async (refreshToken) => {
     );
 };
 
+const changePassword = async (userId, password, newPassword) => {
+    const user = await User.findById(userId).select('+password');
+
+    if (!user) {
+        throw new ApiError(404, 'User không tồn tại');
+    }
+
+    if (password === newPassword) {
+        throw new ApiError(400, 'Mật khẩu mới không được trùng mật khẩu cũ');
+    }
+
+    if (!user.isActive) {
+        throw new ApiError(403, 'Tài khoản này đã bị vô hiệu hóa');
+    }
+
+    const isPasswordMatch = await user.isPasswordMatch(password);
+
+    if (!isPasswordMatch) {
+        throw new ApiError(403, 'Mật khẩu hiện tại không đúng');
+    }
+
+
+    user.password = newPassword;
+    await user.save();
+
+    return user;
+};
+
+const updateProfile = async (userId, updateBody) => {
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new ApiError(404, 'User không tồn tại');
+    }
+
+    const allowedUpdates = ['firstName', 'lastName', 'phone'];
+
+    const updates = Object.keys(updateBody);
+
+    updates.forEach((field) => {
+        if (!allowedUpdates.includes(field)) {
+            throw new ApiError(400, `Không được phép cập nhật : ${field}`);
+        }
+    });
+
+    allowedUpdates.forEach((field) => {
+        if (updateBody[field] !== undefined) {
+            user[field] = updateBody[field];
+        }
+    });
+
+    await user.save();
+
+    return user;
+};
+
+const verifyEmail = async (token) => {
+    const crypto = require('crypto');
+
+    const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+    const user = await User.findOne({
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        throw new ApiError(400, 'Token không hợp lệ hoặc đã hết hạn');
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, 'Email đã được xác minh');
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+
+    await user.save();
+
+    return user;
+};
+
+const resendVerifyEmail = async (userId) => {
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new ApiError(404, 'User không tồn tại');
+    }
+
+    if (!user.isActive) {
+        throw new ApiError(403, 'Tài khoản đã bị vô hiệu hóa');
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, 'Email đã được xác minh');
+    }
+
+    const token = user.createEmailVerificationToken();
+
+    await user.save();
+
+    await emailJobs.addVerifyEmail(user, token);
+
+    return {
+        message: 'Đã gửi lại email xác minh'
+    };
+};
+
+
 module.exports = {
     refreshAccessToken,
     login,
-    register,
     forgotPassword,
     resetPassword,
-    logout
+    logout,
+    changePassword,
+    register,
+    updateProfile,
+    verifyEmail,
+    resendVerifyEmail
 }

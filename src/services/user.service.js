@@ -11,24 +11,6 @@ const getUserById = async (userId) => {
     return user;
 }
 
-const changePassword = async (userId, password, newPassword) => {
-    const user = await User.findById(userId).select('+password');
-
-    if (!user) {
-        throw new ApiError(404, 'User không tồn tại');
-    }
-
-    const isPasswordMatch = await user.isPasswordMatch(password);
-    if (!isPasswordMatch) {
-        throw new ApiError(403, 'Mật khẩu cũ không đúng');
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    return user;
-};
-
 const queryUsers = async (filter, options) => {
     return User.paginate(filter, {
         sortBy: options.sortBy || 'firstName:asc',
@@ -48,7 +30,7 @@ const toggleUser = async (userId) => {
 
 const createUser = async (userBody) => {
     if (await User.isEmailTaken(userBody.email)) {
-        throw new ApiError(404, 'Email đã được sử dụng');
+        throw new ApiError(409, 'Email đã được sử dụng');
     }
 
     const user = await User.create({
@@ -82,7 +64,6 @@ const updateRole = async (userId, role) => {
 
 module.exports = {
     getUserById,
-    changePassword,
     toggleUser,
     queryUsers,
     createUser,
